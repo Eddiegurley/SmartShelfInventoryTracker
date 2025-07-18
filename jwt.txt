@@ -1,0 +1,114 @@
+ What is JWT and How Does It Work?
+JWT (JSON Web Token) is a compact, URL-safe token format used to securely transmit information between parties, especially for authentication and authorization.
+
+🔧 How it works:
+User logs in (sends email/password)
+
+Server verifies credentials
+
+Server generates a JWT, which encodes the user’s ID and other claims
+
+JWT is sent to the client (stored in localStorage or cookies)
+
+Client sends this token with each request (usually in headers)
+
+Server verifies the token to ensure the user is authenticated
+
+✅ 2. Why is JWT Commonly Used for Authentication?
+Because it's:
+
+🔒 Stateless – no need to store session data on the server
+
+⚡ Fast – all info is encoded in the token, so no DB lookup
+
+🌐 Cross-platform – works across mobile, web, APIs
+
+🔐 Tamper-proof – signed with a secret or private key
+
+✅ 3. Difference Between localStorage and Cookies for Storing JWT
+Feature	localStorage	Cookies
+Accessible by JS?	✅ Yes	✅ Yes (unless HttpOnly)
+Sent Automatically?	❌ No (must manually add in headers)	✅ Yes (if same-origin + withCredentials)
+Secure from XSS?	❌ No	✅ Yes (if HttpOnly set)
+Secure from CSRF?	✅ Yes	❌ No (unless CSRF token is used)
+Best For	APIs with manual header auth	Web apps with built-in cookies
+
+🔐 Best practice: use HttpOnly cookies for security-sensitive apps.
+
+✅ 4. Example Code: Generate and Verify JWT in Express
+🔧 Install dependencies
+bash
+Copy code
+npm install jsonwebtoken dotenv
+🛠 In your controller or auth file:
+js
+Copy code
+// authController.js
+const jwt = require('jsonwebtoken');
+
+// generate a token (e.g. after login)
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+};
+🛠 Verify token middleware:
+js
+Copy code
+// middleware/authMiddleware.js
+const jwt = require('jsonwebtoken');
+
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized: Token missing' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; // Attach user to request
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: 'Invalid or expired token' });
+  }
+};
+
+module.exports = verifyToken;
+⭐ Bonus: Protect Routes Using JWT Middleware
+In your routes:
+
+js
+Copy code
+// routes/itemRoutes.js
+const express = require('express');
+const router = express.Router();
+const verifyToken = require('../middleware/authMiddleware');
+const {
+  getAllItems,
+  createItem
+} = require('../controllers/itemController');
+
+// 👇 Protect this route with JWT
+router.get('/', verifyToken, getAllItems);
+router.post('/', verifyToken, createItem);
+
+module.exports = router;
+✅ Now only authenticated users (with a valid token) can access these routes.
+
+🧪 Test Flow Summary
+User logs in → server returns JWT
+
+Client stores token in localStorage or sends it via cookies
+
+For protected endpoints, client adds:
+
+h
+Copy code
+Authorization: Bearer <token>
+Server middleware checks the token before proceeding
+
